@@ -116,20 +116,30 @@ export async function generateSignalClient(
       parts: [{ text: SYSTEM_PROMPT }],
     },
     generationConfig: {
-      temperature: 0.3,
-      maxOutputTokens: 1024,
+      temperature: 0.35,
+      topP: 0.95,
+      maxOutputTokens: 8192,
       responseMimeType: "application/json",
     },
+    safetySettings: [
+      { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_ONLY_HIGH" },
+      { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_ONLY_HIGH" },
+      { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_ONLY_HIGH" },
+      { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_ONLY_HIGH" },
+    ],
   };
 
   let lastError: Error | null = null;
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey,
+          },
           body: JSON.stringify(body),
         }
       );
@@ -140,7 +150,10 @@ export async function generateSignalClient(
       }
 
       const json = await res.json();
-      const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
+      // Filter out thinking blocks (Gemini 2.5), keep only text parts
+      const parts = json.candidates?.[0]?.content?.parts ?? [];
+      const textPart = parts.find((p: { thought?: boolean; text?: string }) => !p.thought && p.text);
+      const text = textPart?.text;
       if (!text) throw new Error("Gemini returned empty response");
 
       // Strip markdown fences if present
