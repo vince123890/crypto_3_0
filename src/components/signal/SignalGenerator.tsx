@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSignalStore } from "@/store/useSignalStore";
 import { getStoredApiKey } from "@/components/dashboard/ApiKeySetup";
-import { Pair } from "@/types";
+import { generateSignalClient } from "@/lib/signalEngineClient";
+import { MarketData, Pair } from "@/types";
 import { Zap, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +14,7 @@ export function SignalGenerator() {
   const { isGenerating, setGenerating, addSignal, addToast, selectedPair, setSelectedPair } =
     useSignalStore();
   const [lastGenerated, setLastGenerated] = useState<string | null>(null);
+  const [statusText, setStatusText] = useState("");
 
   const pairs: Pair[] = ["BTCUSDT", "ETHUSDT"];
 
@@ -28,18 +30,26 @@ export function SignalGenerator() {
     }
 
     setGenerating(true);
+    setStatusText("Mengambil data market...");
     try {
-      const res = await fetch("/api/signal", {
+      // Step 1: Fetch OHLCV dari server (Binance → Next.js API route)
+      const marketRes = await fetch("/api/ohlcv", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pair: selectedPair, apiKey }),
+        body: JSON.stringify({ pair: selectedPair }),
       });
 
-      const data = await res.json();
+      if (!marketRes.ok) {
+        const err = await marketRes.json();
+        throw new Error(err.error ?? "Gagal fetch data market");
+      }
 
-      if (!res.ok) throw new Error(data.error ?? "Gagal generate signal");
+      const marketData: MarketData = await marketRes.json();
 
-      const signal = data.signal;
+      // Step 2: Panggil Gemini langsung dari browser (bypass server Vercel)
+      setStatusText("Menganalisis dengan Gemini 2.5...");
+      const signal = await generateSignalClient(marketData, apiKey);
+
       addSignal(signal);
       setLastGenerated(new Date().toLocaleTimeString("id-ID"));
 
@@ -48,13 +58,15 @@ export function SignalGenerator() {
         description: `Confidence: ${signal.confidenceScore}% | Entry: ${signal.entryLow.toLocaleString()}`,
       });
     } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
       addToast({
         title: "Gagal generate signal",
-        description: err instanceof Error ? err.message : "Unknown error",
+        description: msg.length > 100 ? msg.slice(0, 100) + "..." : msg,
         variant: "destructive",
       });
     } finally {
       setGenerating(false);
+      setStatusText("");
     }
   }
 
@@ -71,8 +83,9 @@ export function SignalGenerator() {
               <button
                 key={p}
                 onClick={() => setSelectedPair(p)}
+                disabled={isGenerating}
                 className={cn(
-                  "px-4 py-2 text-sm font-medium transition-colors",
+                  "px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50",
                   selectedPair === p
                     ? "bg-blue-600 text-white"
                     : "bg-transparent text-gray-400 hover:bg-gray-800"
@@ -91,17 +104,17 @@ export function SignalGenerator() {
             {isGenerating ? (
               <>
                 <RefreshCw size={16} className="animate-spin" />
-                Menganalisis...
+                {statusText || "Menganalisis..."}
               </>
             ) : (
               <>
                 <Zap size={16} />
-                Analisis & Generate Signal
+                Analisis &amp; Generate Signal
               </>
             )}
           </Button>
 
-          {lastGenerated && (
+          {lastGenerated && !isGenerating && (
             <span className="text-xs text-gray-500">
               Terakhir: {lastGenerated}
             </span>
@@ -109,8 +122,8 @@ export function SignalGenerator() {
         </div>
 
         <p className="text-xs text-gray-600 mt-3">
-          AI akan menganalisis OHLCV multi-timeframe (Daily, 4H, 1H, 15m) + Fear & Greed Index
-          menggunakan framework SMC + Bandarmologi via Gemini 2.5 Flash.
+          OHLCV diambil dari Binance → Gemini 2.5 Flash dijalankan langsung dari browser Anda
+          (SMC + Bandarmologi framework).
         </p>
       </CardContent>
     </Card>
