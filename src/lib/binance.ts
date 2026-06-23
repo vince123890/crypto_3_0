@@ -1,18 +1,38 @@
 import { OHLCVCandle, LivePrice, Pair } from "@/types";
 
-const BASE_URL = "https://api.binance.com";
+// data-api.binance.vision = public market-data endpoint TANPA geo-blocking.
+// api.binance.com memblokir IP datacenter (Vercel US) dengan HTTP 451.
+const BASE_URLS = [
+  "https://data-api.binance.vision",
+  "https://api.binance.com",
+];
 const TIMEOUT_MS = 8000;
 
-async function fetchWithTimeout(url: string): Promise<Response> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  try {
-    const res = await fetch(url, { signal: controller.signal, cache: "no-store" });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res;
-  } finally {
-    clearTimeout(timer);
+async function fetchWithTimeout(path: string): Promise<Response> {
+  let lastError: Error | null = null;
+
+  for (const base of BASE_URLS) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    try {
+      const res = await fetch(`${base}${path}`, {
+        signal: controller.signal,
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        // 451 / 403 = geo-block -> coba host berikutnya
+        lastError = new Error(`HTTP ${res.status}`);
+        continue;
+      }
+      return res;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+    } finally {
+      clearTimeout(timer);
+    }
   }
+
+  throw lastError ?? new Error("Semua endpoint Binance gagal");
 }
 
 function parseCandles(raw: unknown[][]): OHLCVCandle[] {
@@ -32,8 +52,8 @@ export async function fetchOHLCV(
   interval: "1d" | "4h" | "1h" | "15m",
   limit = 100
 ): Promise<OHLCVCandle[]> {
-  const url = `${BASE_URL}/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
-  const res = await fetchWithTimeout(url);
+  const path = `/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
+  const res = await fetchWithTimeout(path);
   const data = (await res.json()) as unknown[][];
   return parseCandles(data);
 }
@@ -41,8 +61,8 @@ export async function fetchOHLCV(
 export async function fetchLivePrices(pairs: Pair[]): Promise<LivePrice[]> {
   const results = await Promise.allSettled(
     pairs.map(async (pair): Promise<LivePrice> => {
-      const url = `${BASE_URL}/api/v3/ticker/24hr?symbol=${pair}`;
-      const res = await fetchWithTimeout(url);
+      const path = `/api/v3/ticker/24hr?symbol=${pair}`;
+      const res = await fetchWithTimeout(path);
       const d = await res.json();
       return {
         symbol: pair,
