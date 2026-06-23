@@ -3,6 +3,12 @@
 # dependencies
 /node_modules
 /.pnp
+
+# Environment variables (JANGAN commit ini!)
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 .pnp.js
 .yarn/install-state.gz
 

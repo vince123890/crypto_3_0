@@ -1,36 +1,76 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CryptoSignal Pro
 
-## Getting Started
+BTC/ETH Trading Decision System berbasis AI (Gemini 2.5 Flash) dengan metodologi SMC + Bandarmologi.
 
-First, run the development server:
+## Fitur
+
+- Live price BTC/ETH dari Binance Public API (gratis, no key)
+- Fear & Greed Index dari alternative.me (gratis, no key)
+- AI Signal Engine via Google Gemini 2.5 Flash (pay-per-use)
+- Signal: Entry Zone, SL, TP1/TP2/TP3, Confidence Score, R:R Ratio
+- Multi-timeframe analysis: Daily, 4H, 1H, 15m
+- TradingView chart embed
+- Histori sinyal di localStorage (no database)
+- Export CSV
+- Zero backend, zero database
+
+## Setup Lokal
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Buka `http://localhost:3000`, masukkan Gemini API key langsung di aplikasi.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Dapatkan Gemini API Key
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Buka https://aistudio.google.com/apikey
+2. Klik "Create API key"
+3. Copy key, paste di form yang muncul di dashboard aplikasi
 
-## Learn More
+## Deploy ke Vercel
 
-To learn more about Next.js, take a look at the following resources:
+### Cara 1 — Via GitHub (Recommended)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Push project ke GitHub:
+   ```bash
+   git add .
+   git commit -m "Initial CryptoSignal Pro"
+   git remote add origin https://github.com/username/cryptosignal-pro.git
+   git push -u origin main
+   ```
+2. Buka https://vercel.com/new
+3. Import repository dari GitHub
+4. Environment Variables (opsional):
+   - Key: `GEMINI_API_KEY` | Value: API key Gemini Anda
+5. Klik **Deploy**
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Cara 2 — Via Vercel CLI
 
-## Deploy on Vercel
+```bash
+npm i -g vercel
+vercel login
+vercel --prod
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Catatan
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `GEMINI_API_KEY` di Vercel **opsional** — user dapat input langsung di UI (disimpan di localStorage browser)
+- Jangan commit `.env.local` ke GitHub (sudah ada di .gitignore)
+
+## Tech Stack
+
+| Layer | Teknologi | Biaya |
+|---|---|---|
+| Frontend | Next.js 14 + TypeScript + Tailwind | Gratis |
+| State | Zustand + localStorage | Gratis |
+| AI Engine | Google Gemini 2.5 Flash | Pay-per-use |
+| Market Data | Binance Public REST API | Gratis |
+| Sentiment | Fear & Greed Index (alternative.me) | Gratis |
+| Chart | TradingView Widget | Gratis |
+| Hosting | Vercel Free Tier | Gratis |
+
+## Disclaimer
+
+CryptoSignal Pro adalah platform analisis teknikal yang bersifat **edukatif**. Seluruh sinyal **BUKAN nasihat investasi**. Keputusan trading sepenuhnya tanggung jawab pengguna.
